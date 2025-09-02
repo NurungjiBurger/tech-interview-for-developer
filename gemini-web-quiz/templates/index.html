@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Gemini CS 면접관 (랜덤)</title>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: auto; padding: 20px; }
+        #chatbox { height: 400px; border: 1px solid #ccc; overflow-y: scroll; padding: 10px; margin-bottom: 10px; }
+        .user-msg, .gemini-msg { margin: 10px 0; }
+        .user-msg { text-align: right; }
+        .gemini-msg { background-color: #f1f1f1; padding: 10px; border-radius: 5px; }
+        #controls { display: flex; }
+        #userInput { flex-grow: 1; padding: 10px; }
+        button { padding: 10px; margin-left: 5px; } /* 버튼 스타일 약간 수정 */
+    </style>
+</head>
+<body>
+    <h1>🤖 Gemini CS 면접관 (랜덤 질문)</h1>
+
+    <div id="chatbox">
+        <div class="gemini-msg">안녕하세요! '질문 시작'이라고 입력하여 무작위 CS 기술 면접을 시작하세요. 제가 모든 주제에서 알아서 질문하겠습니다.</div>
+    </div>
+    <div id="controls">
+        <input type="text" id="userInput" placeholder="답변을 입력하세요...">
+        <button id="sendBtn">전송</button>
+        <button id="nextBtn">다음 질문 ⏩</button>
+    </div>
+
+    <script>
+        const chatbox = document.getElementById('chatbox');
+        const userInput = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+        // (핵심) 새로 만든 버튼을 변수에 할당합니다.
+        const nextBtn = document.getElementById('nextBtn');
+        let conversationHistory = "";
+
+        async function sendMessage() {
+            const message = userInput.value;
+            if (!message) return;
+
+            // 사용자 메시지를 대화 기록에 추가하고 화면에 표시
+            appendUserMessage(message);
+
+            // 입력창 비우기
+            userInput.value = '';
+
+            // AI에게 응답 요청
+            await askGeminaiApi();
+        }
+
+        // --- (핵심) '다음 질문' 버튼을 위한 새 함수 ---
+        async function getNextQuestion() {
+            const skipMessage = "다음 질문으로 넘어가 주세요.";
+
+            // '다음 질문' 메시지를 사용자가 보낸 것처럼 처리하여 AI가 문맥을 이해하게 함
+            appendUserMessage(skipMessage);
+
+            // AI에게 새로운 질문 요청
+            await askGeminaiApi();
+        }
+        
+        // --- (핵심) 중복 코드를 정리하기 위한 함수들 ---
+
+        // 사용자의 메시지를 화면과 대화 기록에 추가하는 함수
+        function appendUserMessage(message) {
+            chatbox.innerHTML += `<div class="user-msg"><b>나:</b> ${message}</div>`;
+            conversationHistory += `\n- User: ${message}`;
+            chatbox.scrollTop = chatbox.scrollHeight;
+        }
+
+        // Gemini 답변을 화면과 대화 기록에 추가하는 함수
+        function appendGeminiMessage(message) {
+            const formattedMessage = message.replace(/\n/g, '<br>');
+            chatbox.innerHTML += `<div class="gemini-msg"><b>면접관:</b> ${formattedMessage}</div>`;
+            conversationHistory += `\n- AI: ${message}`;
+            chatbox.scrollTop = chatbox.scrollHeight;
+        }
+
+        // 서버(API)에 질문을 보내고 답변을 받는 공통 함수
+        async function askGeminaiApi() {
+            try {
+                const response = await fetch('/ask', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question: conversationHistory })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                appendGeminiMessage(data.answer);
+
+            } catch (error) {
+                console.error("Fetch error:", error);
+                appendGeminiMessage(`오류가 발생했습니다: ${error.message}`);
+            }
+        }
+
+        // --- 이벤트 리스너 설정 ---
+        sendBtn.addEventListener('click', sendMessage);
+        userInput.addEventListener('keyup', (event) => {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        });
+        
+        // (핵심) '다음 질문' 버튼에 클릭 이벤트를 연결합니다.
+        nextBtn.addEventListener('click', getNextQuestion);
+    </script>
+</body>
+</html>
